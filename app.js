@@ -16,83 +16,141 @@ app.use(express.static("public"));
 mongoose.connect("mongodb+srv://admin-almira:Password.1@cluster0.lh5mzy0.mongodb.net/todolistDB");
 
 
-const itemsSchema ={
-  name:String
-};
+const itemsSchema = new mongoose.Schema({
+  name: String
+});
+
+const Item = mongoose.model("Item", itemsSchema);
+
+//initial items in list 
+const item1 = new Item({
+  name: "Welcome to your todolist!"
+});
+
+const item2 = new Item({
+  name: "Hit the + button to add a new item."
+});
+
+const item3 = new Item({
+  name: "<-- Hit this to delete an item."
+});
+
+const defaultItems= [item1, item2, item3];
+
+// const foundItems = await Item.find({});
 
 const listSchema = {
-  name:String,
-  items:[itemsSchema]
-  };
+  name: String,
+  items: [itemsSchema]
+}
 
-const List = mongoose.model("List",listSchema);
-
-const Item =  mongoose.model("Item",itemsSchema)
-
-const item1 = new Item ({
-name:"Welcome"
-});
-
-const item2 = new Item ({
-  name:"This"
-  });
-
-const item3 = new Item ({
-name:"Is"
-});
-
-const defaultItems = [item1,item2,item3];
-
-
-
+const List = mongoose.model("List", listSchema);
 
 app.get("/", function(req, res) {
 
-  Item.find({}).then(function(foundItems){
+  fItems().catch(err => console.log(err));
 
-    if (foundItems.length==0){
-      Item.insertMany(defaultItems)
+  async function fItems(){
+    const foundItems = await Item.find({});
+
+    if(foundItems.length===0){
+      Item.insertMany(defaultItems);
       res.redirect("/");
-    } else{
-      res.render("list", { listTitle: "Today", newListItems: foundItems });}
-
-})
+    }
+    else{
+      res.render("list", {listTitle: "Today", newListItems: foundItems});
+    }
+  }
+  
 });
 
-app.get("/:customlistName",function(req,res){
-  const customlistName = LoDashStatic.capitalize(req.params.customlistName);
+app.get("/:customListName", function(req, res){
 
-  List.findOne({name:customlistName}).then(function(foundList){
-      if(!foundList){
-        const list = new List({
-          name:customlistName,
-          items:defaultItems
-        });
-        list.save();
-        res.redirect("/"+customlistName);
-      }else{
-        res.render("list",{listTitle: foundList.name ,newListItems: foundList.items})
-      }
-    })
-  });
+  const customListName =LoDashStatic.capitalize(req.params.customListName);
 
+  findOne().catch(err => console.log(err));
+
+  async function findOne(){
+    const foundList = await List.findOne({name: customListName});
+
+    if(!foundList){
+      //Create a new list
+      const list = new List({
+        name: customListName,
+        items: defaultItems
+      });
   
-  app.post("/delete",(req,res)=>{
-    const checkedItemID = req.body.checkbox;
-    const listName = req.body.listName;
-  
-  Item.findByIdAndRemove(checkedItemID).then(function(err){
-    if (!err){
-      console.log("successfully deleted")
+      list.save();
+      res.redirect("/" +customListName); 
+    } else{
+      //Show an existing list
+
+      res.render("list", {listTitle: foundList.name, newListItems: foundList.items});
     }
-  
+  }
+
+});
+
+app.post("/", function(req, res){
+
+  const itemName= req.body.newItem;
+
+  const listName= req.body.list;
+
+  const item = new Item({
+    name: itemName
   });
-  res.redirect("/");
-  });
+
+  if (listName==="Today"){
+    //in the default list
+    item.save();
+    res.redirect("/");
+  } else{
+    //in custom list
+    findCustomList().catch(err => console.log(err));
+
+    async function findCustomList(){
+      const foundList = await List.findOne({name: listName});
+
+      foundList.items.push(item);
+      foundList.save();
+      res.redirect("/" + listName);
+    }
+  }
+});
+
+app.post("/delete", function(req, res){
+  const checkedListName = req.body.listName;
+  const checkedItemId = req.body.checkbox;
+
+  if(checkedListName==="Today"){
+    //In the default list
+    del().catch(err => console.log(err));
+
+    async function del(){
+      await Item.deleteOne({_id: checkedItemId});
+      res.redirect("/");
+    }
+  } else{
+    //In the custom list
+
+    update().catch(err => console.log(err));
+
+    async function update(){
+      await List.findOneAndUpdate({name: checkedListName}, {$pull: {items: {_id: checkedItemId}}});
+      res.redirect("/" + checkedListName);
+    }
+  }
+
+});
 
 
-
+app.get("/about", function(req, res){
+  res.render("about");
+});
 
 app.listen(3000, function() {
   console.log("Server started on port 3000");
 });
+
+
