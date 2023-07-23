@@ -1,9 +1,11 @@
 
+require ("dotenv").config();
 const express = require("express");
 const bodyParser = require("body-parser");
 const mongoose =require ("mongoose");
 const date = require(__dirname + "/date.js");
 const LoDashStatic = require("lodash");
+const PORT = process.env.PORT || 3000;
 
 
 const app = express();
@@ -149,8 +151,8 @@ app.get("/about", function(req, res){
   res.render("about");
 });
 
-app.listen(3000, function() {
-  console.log("Server started on port 3000");
+app.listen(PORT, function() {
+  console.log(`Server started on port ${PORT}`);
 });
 
 
